@@ -36,7 +36,7 @@ if test "start" == $ACTION; then
 	echo "[+] Iptables setted!"
 
 	ip addr add $GW_ADDR dev $AP_IFACE 
-	systemctl restart dnsmasq
+	#systemctl restart dnsmasq
 	systemctl restart hostapd
 	echo "[+] Services restarted!"
 
