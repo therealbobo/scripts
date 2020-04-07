@@ -5,12 +5,12 @@
 ANNO=1
 CURRICULA=""
 RECORD=1
+DAY="today"
 
 API="https://corsi.unibo.it/magistrale/ingegneriainformatica/orario-lezioni/@@orario_reale_json?anno=${ANNO}&curricula=${CURRICULA}"
-DAY=${1:-today}
-DATE=$(date --iso-8601 --date="$DAY")
 
 function start_lesson(){
+	echo
 	bspc rule -a Google-chrome desktop=^1
 	bspc rule -a obs desktop=^10
 
@@ -18,15 +18,20 @@ function start_lesson(){
 	nohup obs --startrecording >& /dev/null &
 }
 
-while getopts "rh" options; do
+while getopts "rhd:" options; do
 	case "${options}" in
 		r)
 			RECORD=0
 			break
 			;;
+		d)
+			DAY=${OPTARG}
+			break
+			;;
 		h)
 			echo "Usage: $0 (-r|-h|<date>)
 	-h	print this help message
+	-d	choose a day
 	-r	start recording"
 			exit 0
 			;;
@@ -35,6 +40,8 @@ while getopts "rh" options; do
 	esac
 done
 
+DATE=$(date --iso-8601 --date="$DAY")
+
 curl -s "$API" \
 	-H 'cookie: unibo_cookie_consent=yes' | \
 	jq -c '.events | .[]' | \
@@ -42,9 +49,10 @@ curl -s "$API" \
 	jq -cr '[.time , .title, .teams] | @csv' | \
 	tr -d '"' | \
 	while IFS=',' read SCHEDULE SUBJECT URL; do
-		START=$(echo $SCHEDULE | awk -F'(:|-| )' '{print $1}')
-		END=$(  echo $SCHEDULE | awk -F'(:|-| )' '{print $5}')
-		CURRENT=$(date +%H)
+		START=$(echo $SCHEDULE | sed 's/://g' | awk '{print $1}' | sed 's/^0*//g')
+		END=$(  echo $SCHEDULE | sed 's/://g' | awk '{print $3}' )
+		START=$((START - 50))
+		CURRENT=$(date +%H%M)
 		[ $RECORD == 0 -a $CURRENT -ge $START -a $CURRENT -le $END ] \
 			&& start_lesson "$URL"
 		echo "$SCHEDULE,${SUBJECT:0:32}"
